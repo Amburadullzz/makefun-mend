@@ -1,0 +1,22 @@
+[
+  { "key": "k-empty-o-note", "why": "6.21/6.22 empty O at the end with a backslash line",
+    "argv": ["--format=unified"], "stdin": "--- a/f\n+++ b/f\n@@ -1,0 +2,1 @@\n+b\n\\ No newline at end of file\n", "files": { "f": "a" } },
+  { "key": "k-empty-o-note-eof-crlf", "why": "6.21/6.22 CRLF file, empty O at the end, backslash",
+    "argv": ["--format=unified"], "stdin": "--- a/f\n+++ b/f\n@@ -1,0 +2,1 @@\n+b\n\\ No newline at end of file\n", "files": { "f": "a\r\n" } },
+  { "key": "k-del-all-note", "why": "6.22 only - lines, matched to the end, backslash after the last - line",
+    "argv": ["--format=unified"], "stdin": "--- a/f\n+++ b/f\n@@ -1,2 +1,0 @@\n-a\n-b\n\\ No newline at end of file\n", "files": { "f": "a\nb" } },
+  { "key": "k-create-then-move", "why": "2.13 a move of a file the patch created is no R line",
+    "argv": ["--format=json"], "stdin": "{\"command\":\"create\",\"path\":\"t\",\"file_text\":\"z\\n\"}\n", "files": {} },
+  { "key": "k-v4a-crlf-update", "why": "3.7 V4A keeps the file's break and final break",
+    "argv": ["--format=v4a"], "stdin": "*** Begin Patch\n*** Update File: f\n@@\n-a\n+A\n*** End Patch\n", "files": { "f": "a\r\nb" } },
+  { "key": "k-sr-last-line-noeol", "why": "3.7 S/R on a file with no final break",
+    "argv": ["--format=search-replace"], "stdin": "f\n<<<<<<< SEARCH\nb\n=======\nB\n>>>>>>> REPLACE\n", "files": { "f": "a\nb" } },
+  { "key": "k-json-insert-crlf-noeol", "why": "9.6 CRLF file with no final break",
+    "argv": ["--format=json"], "stdin": "{\"command\":\"insert\",\"path\":\"f\",\"insert_line\":2,\"new_str\":\"z\"}\n", "files": { "f": "a\r\nb" } },
+  { "key": "k-delete-then-create-same", "why": "10.1 a later edit sees the deletion",
+    "argv": ["--format=json"], "stdin": "{\"command\":\"create\",\"path\":\"t\",\"file_text\":\"q\\n\"}\n", "files": { "t": "x\n" } },
+  { "key": "k-move-onto-deleted", "why": "10.1 a move onto a path deleted earlier succeeds",
+    "argv": ["--format=v4a"], "stdin": "*** Begin Patch\n*** Delete File: b\n*** Update File: a\n*** Move to: b\n*** End Patch\n", "files": { "a": "A\n", "b": "B\n" } },
+  { "key": "k-move-onto-deleted-r", "why": "2.13 no R when the new path existed before the patch",
+    "argv": ["--format=v4a"], "stdin": "*** Begin Patch\n*** Delete File: b\n*** Update File: a\n*** Move to: b\n*** End Patch\n", "files": { "a": "A\n", "b": "B\n" } }
+]

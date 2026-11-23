@@ -1,0 +1,1624 @@
+{
+ "checks": [
+  {
+   "key": "a-order/usage-beats-no-patch",
+   "group": "a",
+   "family": "a-order",
+   "why": "2: a usage error wins over everything",
+   "argv": [
+    "--bogus",
+    "nope.patch"
+   ],
+   "stdin": null,
+   "files": {},
+   "expect": {
+    "exit": 2,
+    "stdout": "error: usage\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-order/no-patch-beats-format",
+   "group": "a",
+   "family": "a-order",
+   "why": "2: no-patch is tried before format",
+   "argv": [
+    "nope.patch"
+   ],
+   "stdin": null,
+   "files": {},
+   "expect": {
+    "exit": 2,
+    "stdout": "error: no-patch\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-order/parse-before-any-file",
+   "group": "a",
+   "family": "a-order",
+   "why": "2: a parse error is reported before any file is looked at",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "--- a/nofile\n+++ b/nofile\n@@ -1,1 +1,1 @@\n-x\n+y\n@@ bogus\n",
+   "files": {},
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 6\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-order/usage-beats-parse",
+   "group": "a",
+   "family": "a-order",
+   "why": "2: a usage error wins over a parse error",
+   "argv": [
+    "--format=bogus",
+    "p.patch"
+   ],
+   "stdin": null,
+   "files": {
+    "p.patch": "@@ bogus\n"
+   },
+   "expect": {
+    "exit": 2,
+    "stdout": "error: usage\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-order/two-positionals",
+   "group": "a",
+   "family": "a-order",
+   "why": "1: more than one positional argument is a usage error",
+   "argv": [
+    "a.patch",
+    "b.patch"
+   ],
+   "stdin": null,
+   "files": {
+    "a.patch": "x"
+   },
+   "expect": {
+    "exit": 2,
+    "stdout": "error: usage\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-order/format-twice",
+   "group": "a",
+   "family": "a-order",
+   "why": "1: an option given twice is a usage error",
+   "argv": [
+    "--format=json",
+    "--format=unified"
+   ],
+   "stdin": "",
+   "files": {},
+   "expect": {
+    "exit": 2,
+    "stdout": "error: usage\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-order/dashdash",
+   "group": "a",
+   "family": "a-order",
+   "why": "1: -- ends the options, so - is the PATCH and reads stdin",
+   "argv": [
+    "--format=json",
+    "--",
+    "-"
+   ],
+   "stdin": "{\"command\":\"create\",\"path\":\"a\",\"file_text\":\"x\"}\n",
+   "files": {},
+   "expect": {
+    "exit": 0,
+    "stdout": "A a\nok: 1 file\n",
+    "changes": {
+     "a": "x"
+    }
+   }
+  },
+  {
+   "key": "a-noedit/unified",
+   "group": "a",
+   "family": "a-noedit",
+   "why": "2: a patch in which the reader finds no edit at all is error: parse 1",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "hello\nworld\n",
+   "files": {},
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 1\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-noedit/search-replace",
+   "group": "a",
+   "family": "a-noedit",
+   "why": "2: no edit at all, SEARCH/REPLACE",
+   "argv": [
+    "--format=search-replace"
+   ],
+   "stdin": "hello\nworld\n",
+   "files": {},
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 1\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-noedit/v4a",
+   "group": "a",
+   "family": "a-noedit",
+   "why": "2: no edit at all, V4A",
+   "argv": [
+    "--format=v4a"
+   ],
+   "stdin": "*** Begin Patch\n*** End Patch\n",
+   "files": {},
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 1\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-noedit/v4a-blank",
+   "group": "a",
+   "family": "a-noedit",
+   "why": "8.1: error: parse 1 when there is no first non-blank line",
+   "argv": [
+    "--format=v4a"
+   ],
+   "stdin": "\n\n   \n",
+   "files": {},
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 1\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-noedit/json-array",
+   "group": "a",
+   "family": "a-noedit",
+   "why": "2: no edit at all, an empty JSON array",
+   "argv": [
+    "--format=json"
+   ],
+   "stdin": "[]\n",
+   "files": {},
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 1\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-noedit/json-blank",
+   "group": "a",
+   "family": "a-noedit",
+   "why": "2: no edit at all, JSON Lines with only blank lines",
+   "argv": [
+    "--format=json"
+   ],
+   "stdin": "\n\n   \n",
+   "files": {},
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 1\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-noedit/auto-no-format",
+   "group": "a",
+   "family": "a-noedit",
+   "why": "4: otherwise it is error: format",
+   "argv": [],
+   "stdin": "hello\nworld\n",
+   "files": {},
+   "expect": {
+    "exit": 2,
+    "stdout": "error: format\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-unsafe/unified-prefix",
+   "group": "a",
+   "family": "a-unsafe",
+   "why": "2: the line names the path as written, after the a/ prefix is removed",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "--- a/../x\n+++ b/../x\n@@ -1 +1 @@\n-a\n+b\n",
+   "files": {},
+   "expect": {
+    "exit": 1,
+    "stdout": "error: unsafe ../x\nfailed: 1 of 1 edits\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-unsafe/v4a-absolute",
+   "group": "a",
+   "family": "a-unsafe",
+   "why": "3.2: a path that starts with / is not safe",
+   "argv": [
+    "--format=v4a"
+   ],
+   "stdin": "*** Begin Patch\n*** Add File: /tmp/zz\n+x\n*** End Patch\n",
+   "files": {},
+   "expect": {
+    "exit": 1,
+    "stdout": "error: unsafe /tmp/zz\nfailed: 1 of 1 edits\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-unsafe/json-backslash",
+   "group": "a",
+   "family": "a-unsafe",
+   "why": "3.2: a path that holds a backslash is not safe",
+   "argv": [
+    "--format=json"
+   ],
+   "stdin": "{\"command\":\"create\",\"path\":\"a\\\\b\",\"file_text\":\"x\"}\n",
+   "files": {},
+   "expect": {
+    "exit": 1,
+    "stdout": "error: unsafe a\\b\nfailed: 1 of 1 edits\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-unsafe/json-empty-segment",
+   "group": "a",
+   "family": "a-unsafe",
+   "why": "3.2: an empty path segment is not safe",
+   "argv": [
+    "--format=json"
+   ],
+   "stdin": "{\"command\":\"create\",\"path\":\"a//b\",\"file_text\":\"x\"}\n",
+   "files": {},
+   "expect": {
+    "exit": 1,
+    "stdout": "error: unsafe a//b\nfailed: 1 of 1 edits\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-unsafe/create-checks-the-old-path",
+   "group": "a",
+   "family": "a-unsafe",
+   "why": "10.2: every path an edit names is checked for safety first",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "diff --git a/ok.txt b/ok.txt\nnew file mode 100644\n--- a/../x\n+++ b/ok.txt\n@@ -0,0 +1 @@\n+hi\n",
+   "files": {},
+   "expect": {
+    "exit": 1,
+    "stdout": "error: unsafe ../x\nfailed: 1 of 1 edits\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-r/sort-key",
+   "group": "a",
+   "family": "a-r",
+   "why": "2: R replaces the pair's D and A lines and sorts by <new>",
+   "argv": [
+    "--format=v4a"
+   ],
+   "stdin": "*** Begin Patch\n*** Update File: m.txt\n*** Move to: b.txt\n*** Add File: c.txt\n+z\n*** Delete File: d.txt\n*** End Patch\n",
+   "files": {
+    "m.txt": "hello\n",
+    "d.txt": "gone\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "R m.txt -> b.txt\nA c.txt\nD d.txt\nok: 3 files\n",
+    "changes": {
+     "m.txt": null,
+     "b.txt": "hello\n",
+     "c.txt": "z\n",
+     "d.txt": null
+    }
+   }
+  },
+  {
+   "key": "a-r/unchanged-bytes",
+   "group": "a",
+   "family": "a-r",
+   "why": "2.13: R even when the moved file's bytes are unchanged",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "diff --git a/a.txt b/b.txt\nsimilarity index 100%\nrename from a.txt\nrename to b.txt\n",
+   "files": {
+    "a.txt": "x\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "R a.txt -> b.txt\nok: 1 file\n",
+    "changes": {
+     "a.txt": null,
+     "b.txt": "x\n"
+    }
+   }
+  },
+  {
+   "key": "a-r/created-then-moved",
+   "group": "a",
+   "family": "a-r",
+   "why": "2.13: no R when <old> did not exist before the patch",
+   "argv": [
+    "--format=v4a"
+   ],
+   "stdin": "*** Begin Patch\n*** Add File: t\n+z\n*** Update File: t\n*** Move to: u\n*** End Patch\n",
+   "files": {},
+   "expect": {
+    "exit": 0,
+    "stdout": "A u\nok: 1 file\n",
+    "changes": {
+     "u": "z\n"
+    }
+   }
+  },
+  {
+   "key": "a-unchanged/hunk-noop",
+   "group": "a",
+   "family": "a-unchanged",
+   "why": "2: a file whose bytes end up unchanged is not listed",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "--- a/f\n+++ b/f\n@@ -1,2 +1,2 @@\n a\n-b\n+b\n",
+   "files": {
+    "f": "a\nb\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "ok: 0 files\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-unchanged/str-replace-noop",
+   "group": "a",
+   "family": "a-unchanged",
+   "why": "2: a str_replace that changes nothing lists nothing",
+   "argv": [
+    "--format=json"
+   ],
+   "stdin": "{\"command\":\"str_replace\",\"path\":\"a\",\"old_str\":\"x\",\"new_str\":\"x\"}\n",
+   "files": {
+    "a": "x\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "ok: 0 files\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-sort/utf8-byte-order",
+   "group": "a",
+   "family": "a-sort",
+   "why": "2: the change lines are in byte order of the paths (UTF-8)",
+   "argv": [
+    "--format=json"
+   ],
+   "stdin": "[{\"command\":\"create\",\"path\":\"\ufffd\",\"file_text\":\"a\"},{\"command\":\"create\",\"path\":\"\ud800\udc00\",\"file_text\":\"b\"},{\"command\":\"create\",\"path\":\"z\",\"file_text\":\"c\"}]\n",
+   "files": {},
+   "expect": {
+    "exit": 0,
+    "stdout": "A z\nA \ufffd\nA \ud800\udc00\nok: 3 files\n",
+    "changes": {
+     "z": "c",
+     "\ufffd": "a",
+     "\ud800\udc00": "b"
+    }
+   }
+  },
+  {
+   "key": "a-check/creates-nothing",
+   "group": "a",
+   "family": "a-check",
+   "why": "1: --check does everything but write: the same output, no file",
+   "argv": [
+    "--check",
+    "--format=v4a"
+   ],
+   "stdin": "*** Begin Patch\n*** Add File: deep/a.txt\n+x\n*** End Patch\n",
+   "files": {},
+   "expect": {
+    "exit": 0,
+    "stdout": "A deep/a.txt\nok: 1 file\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-check/failure-writes-nothing",
+   "group": "a",
+   "family": "a-check",
+   "why": "1: --check with a failing edit writes nothing",
+   "argv": [
+    "--check",
+    "--format=json"
+   ],
+   "stdin": "{\"command\":\"create\",\"path\":\"n\",\"file_text\":\"q\"}\n{\"command\":\"str_replace\",\"path\":\"a\",\"old_str\":\"zz\"}\n",
+   "files": {
+    "a": "x\n"
+   },
+   "expect": {
+    "exit": 1,
+    "stdout": "error: no-match a\nfailed: 1 of 2 edits\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-crlf/patch-lines",
+   "group": "a",
+   "family": "a-crlf",
+   "why": "3.9: a patch line has one trailing \\r removed",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "--- a/f\r\n+++ b/f\r\n@@ -1 +1 @@\r\n-a\r\n+b\r\n",
+   "files": {
+    "f": "a\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "b\n"
+    }
+   }
+  },
+  {
+   "key": "a-crlf/file-keeps-its-break",
+   "group": "a",
+   "family": "a-crlf",
+   "why": "3.7: a changed file is written with its own line break",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "--- a/f\n+++ b/f\n@@ -1 +1 @@\n-a\n+b\n",
+   "files": {
+    "f": "a\r\nc\r\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "b\r\nc\r\n"
+    }
+   }
+  },
+  {
+   "key": "a-crlf/created-file-uses-lf",
+   "group": "a",
+   "family": "a-crlf",
+   "why": "3.8: a file an edit creates is written with LF breaks",
+   "argv": [
+    "--format=v4a"
+   ],
+   "stdin": "*** Begin Patch\n*** Add File: n\n+x\n+y\n*** End Patch\n",
+   "files": {},
+   "expect": {
+    "exit": 0,
+    "stdout": "A n\nok: 1 file\n",
+    "changes": {
+     "n": "x\ny\n"
+    }
+   }
+  },
+  {
+   "key": "a-crlf/end-of-file-gains-a-break",
+   "group": "a",
+   "family": "a-crlf",
+   "why": "6.22: matched lines to the end -> the result ends with a break",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "--- a/f\n+++ b/f\n@@ -2 +2 @@\n-b\n+c\n",
+   "files": {
+    "f": "a\r\nb"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "a\r\nc\r\n"
+    }
+   }
+  },
+  {
+   "key": "a-crlf/no-lines-is-empty",
+   "group": "a",
+   "family": "a-crlf",
+   "why": "3.6: a file of no lines is written empty",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "--- a/f\n+++ b/f\n@@ -1,2 +0,0 @@\n-a\n-b\n",
+   "files": {
+    "f": "a\nb"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": ""
+    }
+   }
+  },
+  {
+   "key": "a-tier2/p-swapped-for-f",
+   "group": "a",
+   "family": "a-tier2",
+   "why": "5.8: a line of N that starts with P has that P replaced by F",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "--- a/f\n+++ b/f\n@@ -1,2 +1,3 @@\n     a\n-    b\n+    c\n+\tz\n",
+   "files": {
+    "f": "  a\n  b\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "  a\n  c\n\tz\n"
+    }
+   }
+  },
+  {
+   "key": "a-tier2/empty-p-prepends-f",
+   "group": "a",
+   "family": "a-tier2",
+   "why": "5.8: with P empty every non-whitespace line of N gets F prepended",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "--- a/f\n+++ b/f\n@@ -1,2 +1,3 @@\n a\n-b\n+c\n+d\n",
+   "files": {
+    "f": "\ta\nb\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "\ta\n\tc\n\td\n"
+    }
+   }
+  },
+  {
+   "key": "a-tier2/context-keeps-the-file-line",
+   "group": "a",
+   "family": "a-tier2",
+   "why": "5.7: a context line is written as the file's own matched line",
+   "argv": [
+    "--format=search-replace"
+   ],
+   "stdin": "f\n<<<<<<< SEARCH\n a\n b\n=======\n a\n c\n>>>>>>> REPLACE\n",
+   "files": {
+    "f": "\ta\n\tb\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "\ta\n\tc\n"
+    }
+   }
+  },
+  {
+   "key": "a-nearest/tie-takes-the-earlier",
+   "group": "a",
+   "family": "a-nearest",
+   "why": "6.20: of two equally near, the earlier",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "--- a/f\n+++ b/f\n@@ -2 +2 @@\n-x\n+X\n",
+   "files": {
+    "f": "x\nq\nx\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "X\nq\nx\n"
+    }
+   }
+  },
+  {
+   "key": "a-nearest/d-shifts-the-target",
+   "group": "a",
+   "family": "a-nearest",
+   "why": "6.20: nearest to A - 1 + d, d summed over earlier hunks",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "--- a/f\n+++ b/f\n@@ -1 +1 @@\n+q\n@@ -3 +3 @@\n-x\n+X\n",
+   "files": {
+    "f": "x\nq\nx\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "x\nq\nq\nX\n"
+    }
+   }
+  },
+  {
+   "key": "a-empty-o/mid-file",
+   "group": "a",
+   "family": "a-empty-o",
+   "why": "6.21: N is inserted after the first A + d lines",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "--- a/f\n+++ b/f\n@@ -2,0 +3,1 @@\n+mid\n",
+   "files": {
+    "f": "a\nb\nc\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "a\nb\nmid\nc\n"
+    }
+   }
+  },
+  {
+   "key": "a-empty-o/past-the-end",
+   "group": "a",
+   "family": "a-empty-o",
+   "why": "6.21: all of them when the file has fewer",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "--- a/f\n+++ b/f\n@@ -99,0 +100,1 @@\n+tail\n",
+   "files": {
+    "f": "a\nb\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "a\nb\ntail\n"
+    }
+   }
+  },
+  {
+   "key": "a-empty-o/at-the-top",
+   "group": "a",
+   "family": "a-empty-o",
+   "why": "6.21: A + d is 0 inserts at the top",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "--- a/f\n+++ b/f\n@@ -0,0 +1 @@\n+top\n",
+   "files": {
+    "f": "a\nb\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "top\na\nb\n"
+    }
+   }
+  },
+  {
+   "key": "a-empty-o/at-the-end-of-an-empty-file",
+   "group": "a",
+   "family": "a-empty-o",
+   "why": "6.21/6.22: insertion at the end of an empty file",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "--- a/f\n+++ b/f\n@@ -0,0 +1 @@\n+x\n",
+   "files": {
+    "f": ""
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "x\n"
+    }
+   }
+  },
+  {
+   "key": "a-backslash/no-final-break",
+   "group": "a",
+   "family": "a-backslash",
+   "why": "6.22: a \\ line after the last + line keeps the file without a break",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "--- a/f\n+++ b/f\n@@ -1,2 +1,2 @@\n a\n-b\n+c\n\\ No newline at end of file\n",
+   "files": {
+    "f": "a\nb"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "a\nc"
+    }
+   }
+  },
+  {
+   "key": "a-backslash/break-added-without-it",
+   "group": "a",
+   "family": "a-backslash",
+   "why": "6.22: matched lines to the end -> the result ends with a break",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "--- a/f\n+++ b/f\n@@ -1,2 +1,2 @@\n a\n-b\n+c\n",
+   "files": {
+    "f": "a\nb"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "a\nc\n"
+    }
+   }
+  },
+  {
+   "key": "a-backslash/after-an-old-line-only",
+   "group": "a",
+   "family": "a-backslash",
+   "why": "6.22: a \\ after a - line does not cover the last context line",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "--- a/f\n+++ b/f\n@@ -1,2 +1,1 @@\n a\n-b\n\\ No newline at end of file\n",
+   "files": {
+    "f": "a\nb"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "a\n"
+    }
+   }
+  },
+  {
+   "key": "a-backslash/created-file",
+   "group": "a",
+   "family": "a-backslash",
+   "why": "6.22: a created file ends with a break unless a \\ follows its last + line",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "--- /dev/null\n+++ b/n\n@@ -0,0 +1,2 @@\n+x\n+y\n\\ No newline at end of file\n",
+   "files": {},
+   "expect": {
+    "exit": 0,
+    "stdout": "A n\nok: 1 file\n",
+    "changes": {
+     "n": "x\ny"
+    }
+   }
+  },
+  {
+   "key": "a-backslash/not-at-the-end",
+   "group": "a",
+   "family": "a-backslash",
+   "why": "6.22: when the matched lines do not reach the end the final break stays",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "--- a/f\n+++ b/f\n@@ -1 +1 @@\n-a\n+A\n\\ No newline at end of file\n",
+   "files": {
+    "f": "a\nb"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "A\nb"
+    }
+   }
+  },
+  {
+   "key": "a-parse-lines/dashdash-without-plus",
+   "group": "a",
+   "family": "a-parse-lines",
+   "why": "6.7: parse <the line after it>",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "diff --git a/x b/x\n--- a/x\nindex 123\n+++ b/x\n@@ -1 +1 @@\n-a\n+b\n",
+   "files": {
+    "x": "a\n"
+   },
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 3\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-parse-lines/dashdash-last-line",
+   "group": "a",
+   "family": "a-parse-lines",
+   "why": "6.7: parse <the line after it> when it is the last line",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "diff --git a/x b/x\n--- a/x\n",
+   "files": {
+    "x": "a\n"
+   },
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 3\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-parse-lines/bad-diff-git",
+   "group": "a",
+   "family": "a-parse-lines",
+   "why": "6.8: parse <its line>",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "diff --git x y\n--- a/x\n+++ b/x\n@@ -1 +1 @@\n-a\n+b\n",
+   "files": {
+    "x": "a\n"
+   },
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 1\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-parse-lines/hunk-before-a-section",
+   "group": "a",
+   "family": "a-parse-lines",
+   "why": "6.9: a hunk before any section is parse <its line>",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "@@ -1 +1 @@\n-a\n+b\n",
+   "files": {
+    "x": "a\n"
+   },
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 1\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-parse-lines/bad-hunk-header",
+   "group": "a",
+   "family": "a-parse-lines",
+   "why": "6.9: any other line starting with @@ is parse <its line>",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "--- a/x\n+++ b/x\n@@ -1 +1 @@\n-a\n+b\n@@ bogus\n",
+   "files": {
+    "x": "a\n"
+   },
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 6\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-parse-lines/hunk-header-without-text",
+   "group": "a",
+   "family": "a-parse-lines",
+   "why": "6.9: a hunk header with no text after it",
+   "argv": [
+    "--format=unified"
+   ],
+   "stdin": "--- a/f\n+++ b/f\n@@ -1 +1 @@\n-x\n+y\n",
+   "files": {
+    "f": "x\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "y\n"
+    }
+   }
+  },
+  {
+   "key": "a-v4a-parse/first-not-begin",
+   "group": "a",
+   "family": "a-v4a-parse",
+   "why": "8.1: parse <that line>",
+   "argv": [
+    "--format=v4a"
+   ],
+   "stdin": "\n\nbogus\n*** End Patch\n",
+   "files": {},
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 3\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-v4a-parse/no-end-patch",
+   "group": "a",
+   "family": "a-v4a-parse",
+   "why": "8.2: parse <the number of patch lines plus 1>",
+   "argv": [
+    "--format=v4a"
+   ],
+   "stdin": "*** Begin Patch\n*** Add File: a\n+x\n",
+   "files": {},
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 4\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-v4a-parse/update-with-no-chunk",
+   "group": "a",
+   "family": "a-v4a-parse",
+   "why": "8.6: parse <its Update File line>",
+   "argv": [
+    "--format=v4a"
+   ],
+   "stdin": "*** Begin Patch\n*** Update File: a\n*** End Patch\n",
+   "files": {
+    "a": "x\n"
+   },
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 2\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-v4a-parse/add-section-bad-line",
+   "group": "a",
+   "family": "a-v4a-parse",
+   "why": "8.6: any other line is parse <its line>",
+   "argv": [
+    "--format=v4a"
+   ],
+   "stdin": "*** Begin Patch\n*** Add File: a\n+x\nbogus\n*** End Patch\n",
+   "files": {},
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 4\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-v4a-parse/end-of-file-with-no-chunk",
+   "group": "a",
+   "family": "a-v4a-parse",
+   "why": "8.6: *** End of File ends a chunk",
+   "argv": [
+    "--format=v4a"
+   ],
+   "stdin": "*** Begin Patch\n*** Update File: a\n*** End of File\n*** End Patch\n",
+   "files": {
+    "a": "x\n"
+   },
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 3\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-v4a-parse/delete-section-has-no-lines",
+   "group": "a",
+   "family": "a-v4a-parse",
+   "why": "8.6: a Delete File section has no lines",
+   "argv": [
+    "--format=v4a"
+   ],
+   "stdin": "*** Begin Patch\n*** Delete File: d.txt\n+x\n*** End Patch\n",
+   "files": {
+    "d.txt": "x\n"
+   },
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 3\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-v4a-cursor/second-chunk-starts-at-the-cursor",
+   "group": "a",
+   "family": "a-v4a-cursor",
+   "why": "8.9: the chunk takes the first occurrence at or after the cursor",
+   "argv": [
+    "--format=v4a"
+   ],
+   "stdin": "*** Begin Patch\n*** Update File: f\n@@ one\n-x\n+X\n@@ two\n-x\n+Y\n*** End Patch\n",
+   "files": {
+    "f": "one\nx\ntwo\nx\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "one\nX\ntwo\nY\n"
+    }
+   }
+  },
+  {
+   "key": "a-v4a-cursor/anchor-has-its-own-tier",
+   "group": "a",
+   "family": "a-v4a-cursor",
+   "why": "8.9: the anchor is found at the first tier where one is",
+   "argv": [
+    "--format=v4a"
+   ],
+   "stdin": "*** Begin Patch\n*** Update File: f\n@@ head\n-A\n+A2\n*** End Patch\n",
+   "files": {
+    "f": "head  \nA\nB\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "head  \nA2\nB\n"
+    }
+   }
+  },
+  {
+   "key": "a-v4a-cursor/end-of-file-chunk",
+   "group": "a",
+   "family": "a-v4a-cursor",
+   "why": "8.9: an end-of-file chunk takes only an occurrence ending at the last line",
+   "argv": [
+    "--format=v4a"
+   ],
+   "stdin": "*** Begin Patch\n*** Update File: f\n@@\n-a\n+A\n*** End of File\n*** End Patch\n",
+   "files": {
+    "f": "a\nb\na\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "a\nb\nA\n"
+    }
+   }
+  },
+  {
+   "key": "a-v4a-cursor/empty-o-inserts-at-the-cursor",
+   "group": "a",
+   "family": "a-v4a-cursor",
+   "why": "8.9: when O is empty, N is inserted at the cursor",
+   "argv": [
+    "--format=v4a"
+   ],
+   "stdin": "*** Begin Patch\n*** Update File: f\n@@\n+x\n*** End Patch\n",
+   "files": {
+    "f": "a\nb\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "x\na\nb\n"
+    }
+   }
+  },
+  {
+   "key": "a-v4a-cursor/empty-o-inserts-at-the-end",
+   "group": "a",
+   "family": "a-v4a-cursor",
+   "why": "8.9: at the end of the file for an end-of-file chunk",
+   "argv": [
+    "--format=v4a"
+   ],
+   "stdin": "*** Begin Patch\n*** Update File: f\n@@\n+x\n*** End of File\n*** End Patch\n",
+   "files": {
+    "f": "a\nb\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "a\nb\nx\n"
+    }
+   }
+  },
+  {
+   "key": "a-v4a-cursor/anchor-not-found",
+   "group": "a",
+   "family": "a-v4a-cursor",
+   "why": "8.9: a chunk with an anchor that is not there is no-match",
+   "argv": [
+    "--format=v4a"
+   ],
+   "stdin": "*** Begin Patch\n*** Update File: f\n@@ nowhere\n-x\n+X\n*** End Patch\n",
+   "files": {
+    "f": "x\n"
+   },
+   "expect": {
+    "exit": 1,
+    "stdout": "error: no-match f\nfailed: 1 of 1 edits\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-json-form/jsonl-bad-line",
+   "group": "a",
+   "family": "a-json-form",
+   "why": "9.2: JSON Lines: parse <that line>",
+   "argv": [
+    "--format=json"
+   ],
+   "stdin": "{\"command\":\"create\",\"path\":\"a\",\"file_text\":\"x\"}\nnope\n",
+   "files": {},
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 2\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-json-form/array-fault-line",
+   "group": "a",
+   "family": "a-json-form",
+   "why": "9.2: array form: parse <the line where the array starts>",
+   "argv": [
+    "--format=json"
+   ],
+   "stdin": "\n[{\"command\":\"create\",\"path\":\"a\",\"file_text\":\"x\"},{\"command\":\"nope\",\"path\":\"b\"}]\n",
+   "files": {},
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 2\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-json-form/array-element-not-an-edit",
+   "group": "a",
+   "family": "a-json-form",
+   "why": "9.2: array form, an element that is not an edit object",
+   "argv": [
+    "--format=json"
+   ],
+   "stdin": "[\n 1\n]\n",
+   "files": {},
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 1\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-json-form/wrong-command",
+   "group": "a",
+   "family": "a-json-form",
+   "why": "9.7: a wrong command is a parse fault",
+   "argv": [
+    "--format=json"
+   ],
+   "stdin": "{\"command\":\"nope\",\"path\":\"a\"}\n",
+   "files": {
+    "a": "x"
+   },
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 1\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-json-form/str-replace-crlf",
+   "group": "a",
+   "family": "a-json-form",
+   "why": "9.5: in a CRLF file both strings are folded to LF and back to CRLF",
+   "argv": [
+    "--format=json"
+   ],
+   "stdin": "{\"command\":\"str_replace\",\"path\":\"f\",\"old_str\":\"a\\nb\",\"new_str\":\"A\\nB\"}\n",
+   "files": {
+    "f": "a\r\nb\r\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "A\r\nB\r\n"
+    }
+   }
+  },
+  {
+   "key": "a-json-form/str-replace-overlapping",
+   "group": "a",
+   "family": "a-json-form",
+   "why": "9.5: positions may overlap, so aa in aaa is ambiguous",
+   "argv": [
+    "--format=json"
+   ],
+   "stdin": "{\"command\":\"str_replace\",\"path\":\"f\",\"old_str\":\"aa\",\"new_str\":\"b\"}\n",
+   "files": {
+    "f": "aaa"
+   },
+   "expect": {
+    "exit": 1,
+    "stdout": "error: ambiguous f\nfailed: 1 of 1 edits\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-json-form/str-replace-no-new-str",
+   "group": "a",
+   "family": "a-json-form",
+   "why": "9.5: new_str absent is empty",
+   "argv": [
+    "--format=json"
+   ],
+   "stdin": "{\"command\":\"str_replace\",\"path\":\"a\",\"old_str\":\"x\"}\n",
+   "files": {
+    "a": "x\ny\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M a\nok: 1 file\n",
+    "changes": {
+     "a": "\ny\n"
+    }
+   }
+  },
+  {
+   "key": "a-insert/past-the-end",
+   "group": "a",
+   "family": "a-insert",
+   "why": "9.6: insert_line from 0 to the number of lines, else no-match",
+   "argv": [
+    "--format=json"
+   ],
+   "stdin": "{\"command\":\"insert\",\"path\":\"f\",\"insert_line\":3,\"new_str\":\"x\"}\n",
+   "files": {
+    "f": "a\nb\n"
+   },
+   "expect": {
+    "exit": 1,
+    "stdout": "error: no-match f\nfailed: 1 of 1 edits\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-insert/negative",
+   "group": "a",
+   "family": "a-insert",
+   "why": "9.6: insert_line from 0, else no-match",
+   "argv": [
+    "--format=json"
+   ],
+   "stdin": "{\"command\":\"insert\",\"path\":\"f\",\"insert_line\":-1,\"new_str\":\"x\"}\n",
+   "files": {
+    "f": "a\n"
+   },
+   "expect": {
+    "exit": 1,
+    "stdout": "error: no-match f\nfailed: 1 of 1 edits\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-insert/at-the-end",
+   "group": "a",
+   "family": "a-insert",
+   "why": "9.6: insert_line equal to the number of lines is allowed",
+   "argv": [
+    "--format=json"
+   ],
+   "stdin": "{\"command\":\"insert\",\"path\":\"f\",\"insert_line\":2,\"new_str\":\"z\"}\n",
+   "files": {
+    "f": "a\nb\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "a\nb\nz\n"
+    }
+   }
+  },
+  {
+   "key": "a-insert/final-break-stays",
+   "group": "a",
+   "family": "a-insert",
+   "why": "9.6: the file's final break stays as it was",
+   "argv": [
+    "--format=json"
+   ],
+   "stdin": "{\"command\":\"insert\",\"path\":\"f\",\"insert_line\":1,\"new_str\":\"z\"}\n",
+   "files": {
+    "f": "a\nb"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "a\nz\nb"
+    }
+   }
+  },
+  {
+   "key": "a-insert/crlf-file",
+   "group": "a",
+   "family": "a-insert",
+   "why": "9.6: a CRLF file keeps its break",
+   "argv": [
+    "--format=json"
+   ],
+   "stdin": "{\"command\":\"insert\",\"path\":\"f\",\"insert_line\":0,\"new_str\":\"x\\r\\ny\"}\n",
+   "files": {
+    "f": "a\r\nb\r\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "x\r\ny\r\na\r\nb\r\n"
+    }
+   }
+  },
+  {
+   "key": "a-insert/mistyped",
+   "group": "a",
+   "family": "a-insert",
+   "why": "9.7: a mistyped key is a parse fault",
+   "argv": [
+    "--format=json"
+   ],
+   "stdin": "{\"command\":\"insert\",\"path\":\"f\",\"insert_line\":\"1\",\"new_str\":\"x\"}\n",
+   "files": {
+    "f": "a\n"
+   },
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 1\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-sr-path/inherits-the-previous-path",
+   "group": "a",
+   "family": "a-sr-path",
+   "why": "7.4: a block with no path line takes the previous block's",
+   "argv": [
+    "--format=search-replace"
+   ],
+   "stdin": "f\n<<<<<<< SEARCH\na\n=======\nb\n>>>>>>> REPLACE\n<<<<<<< SEARCH\nc\n=======\nd\n>>>>>>> REPLACE\n",
+   "files": {
+    "f": "a\nc\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "b\nd\n"
+    }
+   }
+  },
+  {
+   "key": "a-sr-path/first-block-with-none",
+   "group": "a",
+   "family": "a-sr-path",
+   "why": "7.4: the first block with none is parse <its SEARCH line>",
+   "argv": [
+    "--format=search-replace"
+   ],
+   "stdin": "```\n<<<<<<< SEARCH\na\n=======\nb\n>>>>>>> REPLACE\n",
+   "files": {
+    "f": "a\n"
+   },
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 2\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-sr-path/skips-a-blank-line",
+   "group": "a",
+   "family": "a-sr-path",
+   "why": "7.3: the nearest line before SEARCH that is not blank",
+   "argv": [
+    "--format=search-replace"
+   ],
+   "stdin": "f\n\n  \n<<<<<<< SEARCH\na\n=======\nb\n>>>>>>> REPLACE\n",
+   "files": {
+    "f": "a\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "b\n"
+    }
+   }
+  },
+  {
+   "key": "a-sr-path/no-equals-line",
+   "group": "a",
+   "family": "a-sr-path",
+   "why": "7.5: a SEARCH line with no ======= is parse <the SEARCH line>",
+   "argv": [
+    "--format=search-replace"
+   ],
+   "stdin": "f\n<<<<<<< SEARCH\na\n>>>>>>> REPLACE\n",
+   "files": {
+    "f": "a\n"
+   },
+   "expect": {
+    "exit": 2,
+    "stdout": "error: parse 2\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-marker/trailing-whitespace",
+   "group": "a",
+   "family": "a-marker",
+   "why": "7.2: the three marker lines are matched with trailing whitespace removed",
+   "argv": [
+    "--format=search-replace"
+   ],
+   "stdin": "f\n<<<<<<< SEARCH   \na\n=======\t\nb\n>>>>>>> REPLACE  \n",
+   "files": {
+    "f": "a\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "b\n"
+    }
+   }
+  },
+  {
+   "key": "a-marker/trailing-form-feed",
+   "group": "a",
+   "family": "a-marker",
+   "why": "7.2: trailing whitespace, not only spaces and tabs",
+   "argv": [
+    "--format=search-replace"
+   ],
+   "stdin": "f\n<<<<<<< SEARCH\f\na\n=======\f\nb\n>>>>>>> REPLACE\f\n",
+   "files": {
+    "f": "a\n"
+   },
+   "expect": {
+    "exit": 0,
+    "stdout": "M f\nok: 1 file\n",
+    "changes": {
+     "f": "b\n"
+    }
+   }
+  },
+  {
+   "key": "a-marker/empty-old-lines-create",
+   "group": "a",
+   "family": "a-marker",
+   "why": "7.7: old lines empty creates the file (else exists)",
+   "argv": [
+    "--format=search-replace"
+   ],
+   "stdin": "n.txt\n<<<<<<< SEARCH\n=======\n>>>>>>> REPLACE\n",
+   "files": {},
+   "expect": {
+    "exit": 0,
+    "stdout": "A n.txt\nok: 1 file\n",
+    "changes": {
+     "n.txt": ""
+    }
+   }
+  },
+  {
+   "key": "a-marker/ambiguous",
+   "group": "a",
+   "family": "a-marker",
+   "why": "7.8: the old lines occur at their tier exactly once, else ambiguous",
+   "argv": [
+    "--format=search-replace"
+   ],
+   "stdin": "f\n<<<<<<< SEARCH\na\n=======\nb\n>>>>>>> REPLACE\n",
+   "files": {
+    "f": "a\na\n"
+   },
+   "expect": {
+    "exit": 1,
+    "stdout": "error: ambiguous f\nfailed: 1 of 1 edits\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-order-edits/later-edit-sees-the-earlier-one",
+   "group": "a",
+   "family": "a-order-edits",
+   "why": "10.1: a file created earlier is seen by a later edit",
+   "argv": [
+    "--format=json"
+   ],
+   "stdin": "{\"command\":\"create\",\"path\":\"t\",\"file_text\":\"z\\n\"}\n",
+   "files": {},
+   "expect": {
+    "exit": 0,
+    "stdout": "A t\nok: 1 file\n",
+    "changes": {
+     "t": "z\n"
+    }
+   }
+  },
+  {
+   "key": "a-order-edits/failed-edit-changes-nothing",
+   "group": "a",
+   "family": "a-order-edits",
+   "why": "10.3/10.4: a failure writes nothing at all",
+   "argv": [
+    "--format=json"
+   ],
+   "stdin": "{\"command\":\"create\",\"path\":\"n\",\"file_text\":\"q\"}\n{\"command\":\"str_replace\",\"path\":\"a\",\"old_str\":\"zz\"}\n",
+   "files": {
+    "a": "x\n"
+   },
+   "expect": {
+    "exit": 1,
+    "stdout": "error: no-match a\nfailed: 1 of 2 edits\n",
+    "changes": {}
+   }
+  },
+  {
+   "key": "a-order-edits/every-failure-reported",
+   "group": "a",
+   "family": "a-order-edits",
+   "why": "2: one line per failed edit, in the patch's order",
+   "argv": [
+    "--format=json"
+   ],
+   "stdin": "{\"command\":\"str_replace\",\"path\":\"a\",\"old_str\":\"zz\"}\n{\"command\":\"str_replace\",\"path\":\"b\",\"old_str\":\"zz\"}\n{\"command\":\"create\",\"path\":\"a\",\"file_text\":\"q\"}\n",
+   "files": {
+    "a": "x\n",
+    "b": "y\n"
+   },
+   "expect": {
+    "exit": 1,
+    "stdout": "error: no-match a\nerror: no-match b\nerror: exists a\nfailed: 3 of 3 edits\n",
+    "changes": {}
+   }
+  }
+ ]
+}

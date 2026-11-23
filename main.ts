@@ -35,6 +35,8 @@ class Fail {
 const blank = (s: string): boolean => s.trim() === '';
 /** Trailing spaces and tabs removed (tier 1). */
 const trimEndST = (s: string): string => s.replace(/[ \t]+$/, '');
+/** Trailing whitespace removed (the SEARCH/REPLACE markers, section 7.2). */
+const trimEndWS = (s: string): string => s.trimEnd();
 /** Leading and trailing spaces and tabs removed (tier 2). */
 const trimST = (s: string): string => s.replace(/^[ \t]+/, '').replace(/[ \t]+$/, '');
 /** The leading spaces and tabs of a line. */
@@ -451,8 +453,11 @@ function sectionEdit(s: Sec, strict: boolean): Edit {
     const newPath = s.hasNew ? s.pNew : s.hasRNew ? s.rNew : s.hasDiff ? s.diffB : null;
     const isCreate = s.create || oldPath === null;
     const isDelete = s.del || newPath === null;
-    const named = isCreate ? [newPath] : isDelete ? [oldPath] : [oldPath, newPath];
-    for (const p of named) if (p === null || !isSafePath(p)) throw new Fail('unsafe', p ?? '');
+    // Section 10: every path the edit names is checked for safety before anything else about it, in the
+    // order the patch names them. A creation or a deletion still needs the one path it works on.
+    const essential = isCreate ? newPath : oldPath;
+    if (essential === null) throw new Fail('unsafe', '');
+    for (const p of [oldPath, newPath]) if (p !== null && !isSafePath(p)) throw new Fail('unsafe', p);
     if (isCreate) {
       const p = newPath!;
       if (tree.get(p) !== null) throw new Fail('exists', p);
@@ -506,14 +511,14 @@ function searchReplaceEdits(lines: string[], strict: boolean): Edit[] {
   let prevPath: string | null = null;
   let i = 0;
   while (i < lines.length) {
-    if (trimEndST(lines[i]!) !== SR_SEARCH) {
+    if (trimEndWS(lines[i]!) !== SR_SEARCH) {
       i += 1;
       continue;
     }
     const searchLine = i;
     let eq = -1;
     for (let j = i + 1; j < lines.length; j += 1) {
-      if (trimEndST(lines[j]!) === SR_EQ) {
+      if (trimEndWS(lines[j]!) === SR_EQ) {
         eq = j;
         break;
       }
@@ -521,7 +526,7 @@ function searchReplaceEdits(lines: string[], strict: boolean): Edit[] {
     let end = -1;
     if (eq >= 0) {
       for (let j = eq + 1; j < lines.length; j += 1) {
-        if (trimEndST(lines[j]!) === SR_END) {
+        if (trimEndWS(lines[j]!) === SR_END) {
           end = j;
           break;
         }

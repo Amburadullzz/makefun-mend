@@ -1,0 +1,72 @@
+[
+  {
+    "key": "p-hunk-no-trailing-text",
+    "why": "6.9: hunk header @@ -1 +1 @@ with no text after it",
+    "argv": ["--format=unified"],
+    "stdin": "--- a/f\n+++ b/f\n@@ -1 +1 @@\n-x\n+y\n",
+    "files": { "f": "x\n" }
+  },
+  {
+    "key": "p-empty-o-insert",
+    "why": "6.21: O empty, insert after the first A+d lines",
+    "argv": ["--format=unified"],
+    "stdin": "--- a/f\n+++ b/f\n@@ -2,0 +3,1 @@\n+mid\n",
+    "files": { "f": "a\nb\nc\n" }
+  },
+  {
+    "key": "p-empty-o-insert-past-end",
+    "why": "6.21: all of them when the file has fewer",
+    "argv": ["--format=unified"],
+    "stdin": "--- a/f\n+++ b/f\n@@ -99,0 +100,1 @@\n+tail\n",
+    "files": { "f": "a\nb\n" }
+  },
+  {
+    "key": "p-noeol-flag",
+    "why": "6.22: backslash line after last + line, matched lines run to end",
+    "argv": ["--format=unified"],
+    "stdin": "--- a/f\n+++ b/f\n@@ -1,2 +1,2 @@\n a\n-b\n+c\n\\ No newline at end of file\n",
+    "files": { "f": "a\nb" }
+  },
+  {
+    "key": "p-noeol-absent",
+    "why": "6.22: no backslash, matched lines run to end -> result ends with a break",
+    "argv": ["--format=unified"],
+    "stdin": "--- a/f\n+++ b/f\n@@ -1,2 +1,2 @@\n a\n-b\n+c\n",
+    "files": { "f": "a\nb" }
+  },
+  {
+    "key": "p-unchanged-bytes",
+    "why": "2.14: a file whose bytes end up unchanged is not listed",
+    "argv": ["--format=unified"],
+    "stdin": "--- a/f\n+++ b/f\n@@ -1,2 +1,2 @@\n a\n-b\n+b\n",
+    "files": { "f": "a\nb\n" }
+  },
+  {
+    "key": "p-move-r-line",
+    "why": "2.13: R line sorts by <new>, ok count",
+    "argv": ["--format=v4a"],
+    "stdin": "*** Begin Patch\n*** Update File: old.txt\n*** Move to: new.txt\n*** End Patch\n",
+    "files": { "old.txt": "hello\n", "zzz.txt": "z\n" }
+  },
+  {
+    "key": "p-check",
+    "why": "1.5: --check writes nothing but reports the same",
+    "argv": ["--check", "--format=v4a"],
+    "stdin": "*** Begin Patch\n*** Add File: a.txt\n+x\n*** End Patch\n",
+    "files": {}
+  },
+  {
+    "key": "p-insert-oob",
+    "why": "9.6: insert_line bounds -> no-match",
+    "argv": ["--format=json"],
+    "stdin": "{\"command\":\"insert\",\"path\":\"f\",\"insert_line\":3,\"new_str\":\"x\"}\n",
+    "files": { "f": "a\nb\n" }
+  },
+  {
+    "key": "p-str-replace-crlf",
+    "why": "9.5: CRLF folding",
+    "argv": ["--format=json"],
+    "stdin": "{\"command\":\"str_replace\",\"path\":\"f\",\"old_str\":\"a\\nb\",\"new_str\":\"A\\nB\"}\n",
+    "files": { "f": "a\r\nb\r\n" }
+  }
+]
