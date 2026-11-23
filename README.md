@@ -13,4 +13,10 @@ writes every change or none, printing what it changed or why it failed.
 practice checker: `node check.ts practice.json` runs the 100 public checks and prints the score.
 This implementation passes 100 of 100.
 
+`tests/audit.json` is a second set of 88 checks written from SPEC.md's sentences one at a time
+(`node check.ts tests/audit.json`). `tests/robust.py` is the adversarial harness: it generates
+3,316 patches in all four formats plus malformed ones, runs each in a scratch directory with a
+10 s timeout, and fails on any crash, hang or answer that is not one of SPEC.md's shapes
+(`python3 tests/robust.py`).
+
 MIT. See LICENSE.

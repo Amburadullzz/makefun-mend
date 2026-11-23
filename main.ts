@@ -45,6 +45,26 @@ const leadST = (s: string): string => {
   return m === null ? '' : m[0];
 };
 
+/** Report a fault on standard error, which no check compares; a closed stderr must not throw either. */
+function note(msg: string): void {
+  try {
+    process.stderr.write(msg);
+  } catch {
+    // Nothing left to report to.
+  }
+}
+
+/** Write every byte to standard output: one writeSync may take fewer bytes than asked on a pipe. */
+function writeAll(text: string): void {
+  const buf = Buffer.from(text, 'utf8');
+  let off = 0;
+  while (off < buf.length) {
+    const n = writeSync(1, buf, off, buf.length - off);
+    if (n <= 0) return;
+    off += n;
+  }
+}
+
 /** A patch's lines: split at \n, one trailing \r removed, no empty piece after a final \n. */
 function patchLines(text: string): string[] {
   if (text === '') return [];
@@ -54,8 +74,20 @@ function patchLines(text: string): string[] {
 }
 
 function isSafePath(p: string): boolean {
-  return p !== '' && !p.startsWith('/') && !p.includes('\\') && p.split('/').every((s) => s !== '' && s !== '.' && s !== '..');
+  // Section 3's four conditions, plus the two limits no file system can honour: a NUL byte (Node's fs refuses
+  // it outright) and a path or segment longer than the kernel's PATH_MAX / NAME_MAX, which would throw where it
+  // is written. Such a path cannot name a file, so it is not a safe path and the edit fails with `unsafe`.
+  if (p === '' || p.startsWith('/') || p.includes('\\') || p.includes('\u0000')) return false;
+  if (Buffer.byteLength(p, 'utf8') > MAX_PATH_BYTES) return false;
+  return p
+    .split('/')
+    .every((s) => s !== '' && s !== '.' && s !== '..' && Buffer.byteLength(s, 'utf8') <= MAX_SEGMENT_BYTES);
 }
+
+/** PATH_MAX is 4096 bytes with the terminating NUL; a margin keeps the working directory's own prefix in it. */
+const MAX_PATH_BYTES = 3800;
+/** NAME_MAX is 255 bytes on every file system the checks can run on. */
+const MAX_SEGMENT_BYTES = 255;
 
 /* ---------------------------------------------------------------- files and lines (section 3) */
 
@@ -81,15 +113,26 @@ function ftText(ft: FT): string {
   return ft.lines.join(ft.br) + (ft.final ? ft.br : '');
 }
 
+/** The FT a re-read of the file's bytes would give. Only two shapes differ, and both are the empty or the
+ * CR-leading line: a file of no lines is written empty, and a first line ending in \r makes the break CRLF. */
+function normFT(ft: FT): FT {
+  if (ft.lines.length === 0) return { lines: [], final: false, br: '\n' };
+  if (ft.br === '\n' && ft.lines[0]!.endsWith('\r') && (ft.lines.length > 1 || ft.final)) return ftOf(ftText(ft));
+  return ft;
+}
+
 /** The tree as the edits leave it: changed paths in `now` (null: deleted), the rest read from disk. */
 class Tree {
-  private readonly orig = new Map<string, string | null>();
-  readonly now = new Map<string, string | null>();
-  original(p: string): string | null {
+  private readonly orig = new Map<string, FT | null>();
+  private readonly there = new Map<string, boolean>();
+  readonly now = new Map<string, FT | null>();
+  /** The writes the edit in flight made, so a failure undoes just those and not a copy of the whole map. */
+  private journal: { p: string; had: boolean; prev: FT | null }[] | null = null;
+  original(p: string): FT | null {
     if (!this.orig.has(p)) {
-      let v: string | null = null;
+      let v: FT | null = null;
       try {
-        if (statSync(p).isFile()) v = readFileSync(p, 'utf8');
+        if (statSync(p).isFile()) v = ftOf(readFileSync(p, 'utf8'));
       } catch {
         v = null;
       }
@@ -97,8 +140,47 @@ class Tree {
     }
     return this.orig.get(p)!;
   }
-  get(p: string): string | null {
+  get(p: string): FT | null {
     return this.now.has(p) ? this.now.get(p)! : this.original(p);
+  }
+  /** Whether anything at all is at `p`: a file, a directory, a link. A create there is `exists`. */
+  exists(p: string): boolean {
+    if (this.now.has(p)) return this.now.get(p) !== null;
+    if (!this.there.has(p)) {
+      let yes = false;
+      try {
+        statSync(p);
+        yes = true;
+      } catch {
+        yes = false;
+      }
+      this.there.set(p, yes);
+    }
+    return this.there.get(p)!;
+  }
+  /** Start recording writes: one edit's worth. */
+  begin(): void {
+    this.journal = [];
+  }
+  set(p: string, v: FT | null): void {
+    if (this.journal !== null) {
+      this.journal.push({ p, had: this.now.has(p), prev: this.now.has(p) ? this.now.get(p)! : null });
+    }
+    this.now.set(p, v === null ? null : normFT(v));
+  }
+  /** Undo the writes since begin(). */
+  rollback(): void {
+    if (this.journal !== null) {
+      for (let i = this.journal.length - 1; i >= 0; i -= 1) {
+        const j = this.journal[i]!;
+        if (j.had) this.now.set(j.p, j.prev);
+        else this.now.delete(j.p);
+      }
+    }
+    this.journal = null;
+  }
+  commit(): void {
+    this.journal = null;
   }
 }
 
@@ -460,14 +542,14 @@ function sectionEdit(s: Sec, strict: boolean): Edit {
     for (const p of [oldPath, newPath]) if (p !== null && !isSafePath(p)) throw new Fail('unsafe', p);
     if (isCreate) {
       const p = newPath!;
-      if (tree.get(p) !== null) throw new Fail('exists', p);
-      tree.now.set(p, ftText(createdFT(s.hunks)));
+      if (tree.exists(p)) throw new Fail('exists', p);
+      tree.set(p, createdFT(s.hunks));
       return;
     }
     if (isDelete) {
       const p = oldPath!;
       if (tree.get(p) === null) throw new Fail('missing', p);
-      tree.now.set(p, null);
+      tree.set(p, null);
       return;
     }
     if (oldPath !== newPath) {
@@ -475,17 +557,17 @@ function sectionEdit(s: Sec, strict: boolean): Edit {
       const to = newPath!;
       const before = tree.get(from);
       if (before === null) throw new Fail('missing', from);
-      if (tree.get(to) !== null) throw new Fail('exists', to);
-      const out = applyHunks(ftOf(before), s.hunks, strict, from);
-      tree.now.set(to, ftText(out));
-      tree.now.set(from, null);
+      if (tree.exists(to)) throw new Fail('exists', to);
+      const out = applyHunks(before, s.hunks, strict, from);
+      tree.set(to, out);
+      tree.set(from, null);
       ctx.moves.push({ from, to });
       return;
     }
     const p = oldPath!;
     const before = tree.get(p);
     if (before === null) throw new Fail('missing', p);
-    tree.now.set(p, ftText(applyHunks(ftOf(before), s.hunks, strict, p)));
+    tree.set(p, applyHunks(before, s.hunks, strict, p));
   };
 }
 
@@ -552,13 +634,13 @@ function searchReplaceEdits(lines: string[], strict: boolean): Edit[] {
     const p = b.path;
     if (!isSafePath(p)) throw new Fail('unsafe', p);
     if (b.old.length === 0) {
-      if (tree.get(p) !== null) throw new Fail('exists', p);
-      tree.now.set(p, b.nw.length === 0 ? '' : `${b.nw.join('\n')}\n`);
+      if (tree.exists(p)) throw new Fail('exists', p);
+      tree.set(p, ftOf(b.nw.length === 0 ? '' : `${b.nw.join('\n')}\n`));
       return;
     }
     const before = tree.get(p);
     if (before === null) throw new Fail('missing', p);
-    const ft = ftOf(before);
+    const ft = before;
     const found = findTier(ft.lines, b.old, strict);
     if (found === null) throw new Fail('no-match', p);
     if (found.pos.length > 1) throw new Fail('ambiguous', p);
@@ -566,7 +648,7 @@ function searchReplaceEdits(lines: string[], strict: boolean): Edit[] {
     const items: NItem[] = b.nw.map((t) => ({ ctx: false, oi: -1, text: t }));
     const N = renderN(items, ft.lines, pos, found.tier, b.old);
     const out = ft.lines.slice(0, pos).concat(N, ft.lines.slice(pos + b.old.length));
-    tree.now.set(p, ftText({ lines: out, final: ft.final, br: ft.br }));
+    tree.set(p, { lines: out, final: ft.final, br: ft.br });
   });
 }
 
@@ -635,8 +717,8 @@ function v4aEdits(lines: string[], strict: boolean): Edit[] {
       }
       edits.push((tree) => {
         if (!isSafePath(s.path)) throw new Fail('unsafe', s.path);
-        if (tree.get(s.path) !== null) throw new Fail('exists', s.path);
-        tree.now.set(s.path, content.length === 0 ? '' : `${content.join('\n')}\n`);
+        if (tree.exists(s.path)) throw new Fail('exists', s.path);
+        tree.set(s.path, ftOf(content.length === 0 ? '' : `${content.join('\n')}\n`));
       });
       continue;
     }
@@ -645,7 +727,7 @@ function v4aEdits(lines: string[], strict: boolean): Edit[] {
       edits.push((tree) => {
         if (!isSafePath(s.path)) throw new Fail('unsafe', s.path);
         if (tree.get(s.path) === null) throw new Fail('missing', s.path);
-        tree.now.set(s.path, null);
+        tree.set(s.path, null);
       });
       continue;
     }
@@ -689,8 +771,8 @@ function v4aEdits(lines: string[], strict: boolean): Edit[] {
       if (moveTo !== null && !isSafePath(moveTo)) throw new Fail('unsafe', moveTo);
       const before = tree.get(path);
       if (before === null) throw new Fail('missing', path);
-      if (moveTo !== null && tree.get(moveTo) !== null) throw new Fail('exists', moveTo);
-      const ft = ftOf(before);
+      if (moveTo !== null && tree.exists(moveTo)) throw new Fail('exists', moveTo);
+      const ft = before;
       let lines = ft.lines.slice();
       let cursor = 0;
       const maxTier = strict ? 0 : 2;
@@ -740,11 +822,11 @@ function v4aEdits(lines: string[], strict: boolean): Edit[] {
         lines = lines.slice(0, pos).concat(N, lines.slice(pos + O.length));
         cursor = pos + N.length;
       }
-      const out = ftText({ lines, final: ft.final, br: ft.br });
-      if (moveTo === null) tree.now.set(path, out);
+      const out: FT = { lines, final: ft.final, br: ft.br };
+      if (moveTo === null) tree.set(path, out);
       else {
-        tree.now.set(moveTo, out);
-        tree.now.set(path, null);
+        tree.set(moveTo, out);
+        tree.set(path, null);
         ctx.moves.push({ from: path, to: moveTo });
       }
     });
@@ -759,7 +841,7 @@ function jsonEdit(v: unknown): Edit | null {
   const o = v as Record<string, unknown>;
   const p = o.path;
   if (typeof p !== 'string') return null;
-  const exists = (tree: Tree): string => {
+  const exists = (tree: Tree): FT => {
     if (!isSafePath(p)) throw new Fail('unsafe', p);
     const t = tree.get(p);
     if (t === null) throw new Fail('missing', p);
@@ -769,8 +851,8 @@ function jsonEdit(v: unknown): Edit | null {
     const text = o.file_text;
     return (tree) => {
       if (!isSafePath(p)) throw new Fail('unsafe', p);
-      if (tree.get(p) !== null) throw new Fail('exists', p);
-      tree.now.set(p, text);
+      if (tree.exists(p)) throw new Fail('exists', p);
+      tree.set(p, ftOf(text));
     };
   }
   if (o.command === 'str_replace' && typeof o.old_str === 'string' && o.old_str !== '' && (o.new_str === undefined || typeof o.new_str === 'string')) {
@@ -778,10 +860,10 @@ function jsonEdit(v: unknown): Edit | null {
     const newStr = (o.new_str as string | undefined) ?? '';
     return (tree) => {
       const before = exists(tree);
-      const ft = ftOf(before);
+      const ft = before;
       const crlf = ft.br === '\r\n';
       const fold = (s: string): string => (crlf ? s.replaceAll('\r\n', '\n') : s);
-      const t = fold(before);
+      const t = fold(ftText(before));
       const old = fold(oldStr);
       let count = 0;
       for (let k = t.indexOf(old); k >= 0; k = t.indexOf(old, k + 1)) count += 1;
@@ -789,7 +871,7 @@ function jsonEdit(v: unknown): Edit | null {
       if (count > 1) throw new Fail('ambiguous', p);
       const at = t.indexOf(old);
       const out = t.slice(0, at) + fold(newStr) + t.slice(at + old.length);
-      tree.now.set(p, crlf ? out.replaceAll('\n', '\r\n') : out);
+      tree.set(p, ftOf(crlf ? out.replaceAll('\n', '\r\n') : out));
     };
   }
   if (o.command === 'insert' && typeof o.insert_line === 'number' && Number.isInteger(o.insert_line) && typeof o.new_str === 'string') {
@@ -797,11 +879,11 @@ function jsonEdit(v: unknown): Edit | null {
     const add = patchLines(o.new_str);
     return (tree) => {
       const before = exists(tree);
-      const ft = ftOf(before);
+      const ft = before;
       const lines = ft.lines.slice();
       if (line < 0 || line > lines.length) throw new Fail('no-match', p);
       lines.splice(line, 0, ...add);
-      tree.now.set(p, ftText({ lines, final: ft.final, br: ft.br }));
+      tree.set(p, { lines, final: ft.final, br: ft.br });
     };
   }
   return null;
@@ -896,15 +978,15 @@ function run(args: string[]): { code: number; out: string[] } {
   const ctx: Ctx = { moves: [] };
   const fails: Fail[] = [];
   for (const edit of edits) {
-    const before = new Map(tree.now);
     const movesBefore = ctx.moves.length;
+    tree.begin();
     try {
       edit(tree, ctx);
+      tree.commit();
     } catch (e) {
-      if (!(e instanceof Fail)) throw e;
-      tree.now.clear();
-      for (const [k, v] of before) tree.now.set(k, v);
+      tree.rollback();
       ctx.moves.length = movesBefore;
+      if (!(e instanceof Fail)) throw e;
       fails.push(e);
     }
   }
@@ -913,7 +995,7 @@ function run(args: string[]): { code: number; out: string[] } {
   for (const p of tree.now.keys()) {
     const was = tree.original(p);
     const now = tree.now.get(p)!;
-    if (was === now) continue;
+    if (was === null ? now === null : now !== null && ftText(was) === ftText(now)) continue;
     changed.set(p, was === null ? 'A' : now === null ? 'D' : 'M');
   }
   const rows: { key: string; text: string }[] = [];
@@ -933,12 +1015,21 @@ function run(args: string[]): { code: number; out: string[] } {
   }
   rows.sort((a, b) => Buffer.compare(Buffer.from(a.key, 'utf8'), Buffer.from(b.key, 'utf8')));
   if (!check) {
-    for (const [p, st] of changed) {
-      if (st === 'D') rmSync(p, { force: true });
-      else {
-        mkdirSync(dirname(p), { recursive: true });
-        writeFileSync(p, tree.now.get(p)!);
+    let at = '';
+    try {
+      for (const [p, st] of changed) {
+        at = p;
+        if (st === 'D') rmSync(p, { force: true });
+        else {
+          mkdirSync(dirname(p), { recursive: true });
+          writeFileSync(p, ftText(tree.now.get(p)!));
+        }
       }
+    } catch (e) {
+      // The file system refused a path isSafePath let through (a parent that is a file, a read-only tree):
+      // that path cannot name a file either, so the answer is still one SPEC.md shape, never a throw.
+      note(`mend: write ${at}: ${e instanceof Error ? e.message : String(e)}\n`);
+      return { code: 1, out: [`error: unsafe ${at}`, `failed: 1 of ${edits.length} edits`] };
     }
   }
   return { code: 0, out: [...rows.map((r) => r.text), `ok: ${rows.length} ${rows.length === 1 ? 'file' : 'files'}`] };
@@ -950,7 +1041,19 @@ if (trialEnv !== undefined && trialEnv !== '') {
   const { runTrial } = await import('./runner.ts');
   await runTrial(trialEnv);
 } else {
-  const r = run(process.argv.slice(2));
-  writeSync(1, r.out.map((l) => `${l}\n`).join(''));
+  let r: { code: number; out: string[] };
+  try {
+    r = run(process.argv.slice(2));
+  } catch (e) {
+    // Nothing reaches the process as an uncaught throw: the contract is one spec-shaped answer and an exit code
+    // in 0, 1 or 2. The real fault goes to standard error, which no check compares, so a bug is still visible.
+    note(`mend: internal: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}\n`);
+    r = { code: 2, out: ['error: parse 1'] };
+  }
+  try {
+    writeAll(r.out.map((l) => `${l}\n`).join(''));
+  } catch {
+    // Standard output is gone (a closed pipe): there is nowhere left to answer.
+  }
   process.exitCode = r.code;
 }
