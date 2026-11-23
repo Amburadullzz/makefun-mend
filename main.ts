@@ -4,6 +4,14 @@
 // In a trial the grader runs `node /bot/main.ts` with MAKEFUN_ENV_URL set, and then this file hands over to runner.ts
 // (the last lines below): keep that hand-over and runner.ts as they are, and write the CLI.
 
+/*
+  Formats read (auto-detected, or named with --format=): unified diff, SEARCH/REPLACE blocks,
+  V4A patches, JSON edit objects.
+  Matching tiers, tried in order until one finds the block: 0 exact, 1 ignoring trailing spaces
+  and tabs, 2 ignoring leading and trailing spaces and tabs. The first tier that matches wins;
+  --strict allows tier 0 only.
+*/
+
 import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs';
 import { dirname } from 'node:path';
 
@@ -43,7 +51,7 @@ function patchLines(text: string): string[] {
   return lines.map((l) => (l.endsWith('\r') ? l.slice(0, -1) : l));
 }
 
-function safe(p: string): boolean {
+function isSafePath(p: string): boolean {
   return p !== '' && !p.startsWith('/') && !p.includes('\\') && p.split('/').every((s) => s !== '' && s !== '.' && s !== '..');
 }
 
@@ -284,6 +292,7 @@ function parseUnified(lines: string[]): Sec[] {
   while (i < lines.length) {
     const L = lines[i]!;
     const NX = lines[i + 1] ?? '';
+    const isHunkHeader = L.startsWith('@@');
     if (L.startsWith('diff --git ')) {
       const m = DIFF_RE.exec(L);
       if (m === null) throw new Exit2(`error: parse ${i + 1}`);
@@ -304,12 +313,12 @@ function parseUnified(lines: string[]): Sec[] {
       phase = 'header';
     }
     if (cur === null) {
-      if (L.startsWith('@@')) throw new Exit2(`error: parse ${i + 1}`);
+      if (isHunkHeader) throw new Exit2(`error: parse ${i + 1}`);
       i += 1;
       continue;
     }
     if (phase === 'header') {
-      if (L.startsWith('@@')) {
+      if (isHunkHeader) {
         const m = HUNK_RE.exec(L);
         if (m === null) throw new Exit2(`error: parse ${i + 1}`);
         closeBody();
@@ -360,7 +369,7 @@ function parseUnified(lines: string[]): Sec[] {
       i += 1;
       continue;
     }
-    if (L.startsWith('@@')) {
+    if (isHunkHeader) {
       const m = HUNK_RE.exec(L);
       if (m === null) throw new Exit2(`error: parse ${i + 1}`);
       closeBody();
@@ -443,7 +452,7 @@ function sectionEdit(s: Sec, strict: boolean): Edit {
     const isCreate = s.create || oldPath === null;
     const isDelete = s.del || newPath === null;
     const named = isCreate ? [newPath] : isDelete ? [oldPath] : [oldPath, newPath];
-    for (const p of named) if (p === null || !safe(p)) throw new Fail('unsafe', p ?? '');
+    for (const p of named) if (p === null || !isSafePath(p)) throw new Fail('unsafe', p ?? '');
     if (isCreate) {
       const p = newPath!;
       if (tree.get(p) !== null) throw new Fail('exists', p);
@@ -536,7 +545,7 @@ function searchReplaceEdits(lines: string[], strict: boolean): Edit[] {
   }
   return blocks.map((b) => (tree) => {
     const p = b.path;
-    if (!safe(p)) throw new Fail('unsafe', p);
+    if (!isSafePath(p)) throw new Fail('unsafe', p);
     if (b.old.length === 0) {
       if (tree.get(p) !== null) throw new Fail('exists', p);
       tree.now.set(p, b.nw.length === 0 ? '' : `${b.nw.join('\n')}\n`);
@@ -620,7 +629,7 @@ function v4aEdits(lines: string[], strict: boolean): Edit[] {
         else throw new Exit2(`error: parse ${b.no}`);
       }
       edits.push((tree) => {
-        if (!safe(s.path)) throw new Fail('unsafe', s.path);
+        if (!isSafePath(s.path)) throw new Fail('unsafe', s.path);
         if (tree.get(s.path) !== null) throw new Fail('exists', s.path);
         tree.now.set(s.path, content.length === 0 ? '' : `${content.join('\n')}\n`);
       });
@@ -629,7 +638,7 @@ function v4aEdits(lines: string[], strict: boolean): Edit[] {
     if (s.kind === 'delete') {
       for (const b of s.body) throw new Exit2(`error: parse ${b.no}`);
       edits.push((tree) => {
-        if (!safe(s.path)) throw new Fail('unsafe', s.path);
+        if (!isSafePath(s.path)) throw new Fail('unsafe', s.path);
         if (tree.get(s.path) === null) throw new Fail('missing', s.path);
         tree.now.set(s.path, null);
       });
@@ -671,8 +680,8 @@ function v4aEdits(lines: string[], strict: boolean): Edit[] {
     const path = s.path;
     const chunks = s.chunks;
     edits.push((tree, ctx) => {
-      if (!safe(path)) throw new Fail('unsafe', path);
-      if (moveTo !== null && !safe(moveTo)) throw new Fail('unsafe', moveTo);
+      if (!isSafePath(path)) throw new Fail('unsafe', path);
+      if (moveTo !== null && !isSafePath(moveTo)) throw new Fail('unsafe', moveTo);
       const before = tree.get(path);
       if (before === null) throw new Fail('missing', path);
       if (moveTo !== null && tree.get(moveTo) !== null) throw new Fail('exists', moveTo);
@@ -746,7 +755,7 @@ function jsonEdit(v: unknown): Edit | null {
   const p = o.path;
   if (typeof p !== 'string') return null;
   const exists = (tree: Tree): string => {
-    if (!safe(p)) throw new Fail('unsafe', p);
+    if (!isSafePath(p)) throw new Fail('unsafe', p);
     const t = tree.get(p);
     if (t === null) throw new Fail('missing', p);
     return t;
@@ -754,7 +763,7 @@ function jsonEdit(v: unknown): Edit | null {
   if (o.command === 'create' && typeof o.file_text === 'string') {
     const text = o.file_text;
     return (tree) => {
-      if (!safe(p)) throw new Fail('unsafe', p);
+      if (!isSafePath(p)) throw new Fail('unsafe', p);
       if (tree.get(p) !== null) throw new Fail('exists', p);
       tree.now.set(p, text);
     };
