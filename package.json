@@ -1,0 +1,7 @@
+{
+  "name": "mend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "mend: one patch tool for every AI edit format"
+}
